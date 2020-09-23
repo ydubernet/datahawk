@@ -11,25 +11,29 @@ namespace amazon_scraper.Services
 {
     public class ScrapingService : IScrapingService
     {
-        private const string WEB_SITE_URL = "https://www.amazon.com/product-reviews/";
+        private const string WEB_SITE_URL = "https://www.amazon.com";
         private readonly ILogger<ScrapingService> _logger;
 
-        public ScrapingService()
+        public ScrapingService(ILogger<ScrapingService> logger)
         {
-            //_logger = logger;
+            _logger = logger;
         }
 
-        public async Task<List<Review>> GetPageData(string asin, List<Review> results)
+        public async Task<List<Review>> GetPageData(string url, List<Review> results)
         {
             var config = Configuration.Default.WithDefaultLoader();
             var context = BrowsingContext.New(config);
-            var url = WEB_SITE_URL + asin;
             var document = await context.OpenAsync(url);
 
-            // Debug
-            //_logger.LogInformation(document.DocumentElement.OuterHtml);
-
             var rawReviews = document.QuerySelectorAll(".review");
+
+            Match urlProductIdMatchRegex = Regex.Match(url, "/product-reviews/(?<ProductId>B[A-Z0-9]+)");
+            if (!urlProductIdMatchRegex.Success)
+            {
+                throw new ArgumentException("Url should contain ProductId starting with a B.");
+            }
+
+            string asin = urlProductIdMatchRegex.Groups["ProductId"].Value;
 
             foreach (var rawReview in rawReviews)
             {
@@ -45,14 +49,31 @@ namespace amazon_scraper.Services
                     DateTime.TryParse(dateRegexMatch.Groups["Date"].Value, out reviewDate);   
                 }
 
-                string reviewContent = rawReview.FirstElementChild.FirstChild.ChildNodes[4].FirstChild.TextContent.Trim();//rawReview.QuerySelector($"{divId}-review-card > customer_review-{divId} > div.review-data > .review-body > span").TextContent;
-                string reviewRatingRow = rawReview.FirstElementChild.FirstChild.ChildNodes[1].FirstChild.TextContent.Trim(); //rawReview.QuerySelector(".review-start-rating > span").TextContent;
-                var ratingRegexMatch = Regex.Match(reviewRatingRow, "^(?<ReviewRating>[0-9].[0-9]) out of 5 stars$");
-
-                double reviewRating = -1.0;
-                if(ratingRegexMatch.Success)
+                string reviewContent = null;
+                try
                 {
-                    double.TryParse(ratingRegexMatch.Groups["ReviewRating"].Value, out reviewRating);
+                    reviewContent = rawReview.FirstElementChild.FirstChild.ChildNodes[4].FirstChild.TextContent.Trim();//rawReview.QuerySelector($"{divId}-review-card > customer_review-{divId} > div.review-data > .review-body > span").TextContent;
+                }
+                catch(Exception e)
+                {
+                    _logger.LogError(e, $"Failing to parse content on URL {url}");
+                }
+
+                string reviewRatingRow;
+                double reviewRating = -1.0;
+                try
+                {
+                    reviewRatingRow = rawReview.FirstElementChild.FirstChild.ChildNodes[1].FirstChild.TextContent.Trim(); //rawReview.QuerySelector(".review-start-rating > span").TextContent;
+                    var ratingRegexMatch = Regex.Match(reviewRatingRow, "^(?<ReviewRating>[0-9].[0-9]) out of 5 stars$");
+
+                    if (ratingRegexMatch.Success)
+                    {
+                        double.TryParse(ratingRegexMatch.Groups["ReviewRating"].Value, out reviewRating);
+                    }
+                }
+                catch(Exception e)
+                {
+                    _logger.LogError(e, $"Failing to parse rating on URL {url}");
                 }
 
                 results.Add(new Review(asin, reviewDate, reviewTitle, reviewContent, reviewRating));
@@ -67,7 +88,7 @@ namespace amazon_scraper.Services
             }
 
             // If next page link is present recursively call the function again with the new url
-            if (!String.IsNullOrEmpty(nextPageUrl))
+            if (!string.IsNullOrEmpty(nextPageUrl))
             {
                 return await GetPageData(nextPageUrl, results);
             }

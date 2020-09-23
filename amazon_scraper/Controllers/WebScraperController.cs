@@ -16,6 +16,8 @@ namespace amazon_scrapper.Controllers
     [ApiController]
     public class WebScraperController : ControllerBase
     {
+        private const string WEB_SITE_URL = "https://www.amazon.com";
+        private const string WEB_SITE_REVIEW_URL = WEB_SITE_URL + "/product-reviews/";
         private readonly ILogger<WebScraperController> _logger;
         private readonly IScrapingService _scrapingService;
         
@@ -41,8 +43,8 @@ namespace amazon_scrapper.Controllers
 
             //   return document.DocumentElement.OuterHtml;
             var results = new List<Review>();
-            //B082XY23D5
-            await _scrapingService.GetPageData(productId, results);
+            //B082XY23D5 or B084M1M1DZ
+            await _scrapingService.GetPageData(WEB_SITE_REVIEW_URL + productId, results);
 
             foreach(var res in results)
             {
@@ -53,7 +55,7 @@ namespace amazon_scrapper.Controllers
                 _logger.LogInformation("ReviewContent: " + res.ReviewContent);
             }
 
-            return results.Select(r => r.ReviewContent).Aggregate((r, s) => (r + Environment.NewLine + s));
+            return results.Select(r => r.ReviewContent).Aggregate((r, s) => (r + Environment.NewLine + Environment.NewLine + s));
         }
     }
 }

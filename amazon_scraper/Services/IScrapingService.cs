@@ -6,6 +6,6 @@ namespace amazon_scraper.Services
 {
     public interface IScrapingService
     {
-        Task<List<Review>> GetPageData(string asin, List<Review> results);
+        Task<List<Review>> GetPageData(string url, List<Review> results);
     }
 }
