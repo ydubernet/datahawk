@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using AngleSharp;
 using AngleSharp.Html.Parser;
 using amazon_scraper.Services;
+using amazon_scraper.Models;
 
 namespace amazon_scrapper.Controllers
 {
@@ -26,28 +27,33 @@ namespace amazon_scrapper.Controllers
             _scrapingService = scrapingService;
         }
 
-        [HttpGet]
-        public async Task<string> Get()
+        [HttpGet("{productId}")]
+        public async Task<string> Get(string productId)
         {
             //// Load default configuration
             //   var config = Configuration.Default.WithDefaultLoader();
             //   // Create a new browsing context
             //   var context = BrowsingContext.New(config);
             //   // This is where the HTTP request happens, returns <IDocument> that // we can query later
-            //   var document = await context.OpenAsync("https://www.amazon.com/product-reviews/B082XY23D5");
+            //   var document = await context.OpenAsync($"https://www.amazon.com/product-reviews/{productId}");
             //   // Log the data to the console
             //   _logger.LogInformation(document.DocumentElement.OuterHtml);
 
             //   return document.DocumentElement.OuterHtml;
-            var results = new List<string>();
-            await _scrapingService.GetPageData("https://www.amazon.com/product-reviews/B082XY23D5", results);
+            var results = new List<Review>();
+            //B082XY23D5
+            await _scrapingService.GetPageData(productId, results);
 
             foreach(var res in results)
             {
-                _logger.LogInformation((string)res);
+                _logger.LogInformation("Asin: " + res.Asin);
+                _logger.LogInformation("Rating: " + res.Rating);
+                _logger.LogInformation("ReviewDate: " + res.ReviewDate);
+                _logger.LogInformation("ReviewTitle: " + res.ReviewTitle);
+                _logger.LogInformation("ReviewContent: " + res.ReviewContent);
             }
-           
-            return results.ToString();
+
+            return results.Select(r => r.ReviewContent).Aggregate((r, s) => (r + Environment.NewLine + s));
         }
     }
 }
