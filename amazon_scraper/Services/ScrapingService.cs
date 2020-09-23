@@ -19,12 +19,25 @@ namespace amazon_scraper.Services
             _logger = logger;
         }
 
-        public async Task<List<Review>> GetPageData(string url, List<Review> results)
+        public async Task<List<Review>> GetPageData(string url, int sortByRecent, List<Review> results)
         {
             var config = Configuration.Default.WithDefaultLoader();
             var context = BrowsingContext.New(config);
-            var document = await context.OpenAsync(url);
+            string requestUrl = url;
 
+            if (sortByRecent == 1)
+            {
+                if (url.Contains("?"))
+                {
+                    requestUrl = url + "&sortBy=recent";
+                }
+                else
+                {
+                    requestUrl = url + "?sortBy=recent";
+                }
+            }
+            
+            var document = await context.OpenAsync(requestUrl);
             var rawReviews = document.QuerySelectorAll(".review");
 
             Match urlProductIdMatchRegex = Regex.Match(url, "/product-reviews/(?<ProductId>B[A-Z0-9]+)");
@@ -90,7 +103,7 @@ namespace amazon_scraper.Services
             // If next page link is present recursively call the function again with the new url
             if (!string.IsNullOrEmpty(nextPageUrl))
             {
-                return await GetPageData(nextPageUrl, results);
+                return await GetPageData(nextPageUrl, sortByRecent, results);
             }
 
             return results;

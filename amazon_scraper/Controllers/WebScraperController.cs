@@ -9,6 +9,8 @@ using AngleSharp;
 using AngleSharp.Html.Parser;
 using amazon_scraper.Services;
 using amazon_scraper.Models;
+using System.Text;
+using System.IO;
 
 namespace amazon_scrapper.Controllers
 {
@@ -29,22 +31,17 @@ namespace amazon_scrapper.Controllers
             _scrapingService = scrapingService;
         }
 
+        /// <summary>
+        /// Retrieves product reviews for a given productId
+        /// </summary>
+        /// <param name="productId">Amazon product id, aka ASIN</param>
+        /// <returns></returns>
         [HttpGet("{productId}")]
-        public async Task<string> Get(string productId)
+        public async Task<string> GetAsync(string productId, int sortByRecent)
         {
-            //// Load default configuration
-            //   var config = Configuration.Default.WithDefaultLoader();
-            //   // Create a new browsing context
-            //   var context = BrowsingContext.New(config);
-            //   // This is where the HTTP request happens, returns <IDocument> that // we can query later
-            //   var document = await context.OpenAsync($"https://www.amazon.com/product-reviews/{productId}");
-            //   // Log the data to the console
-            //   _logger.LogInformation(document.DocumentElement.OuterHtml);
-
-            //   return document.DocumentElement.OuterHtml;
             var results = new List<Review>();
             //B082XY23D5 or B084M1M1DZ
-            await _scrapingService.GetPageData(WEB_SITE_REVIEW_URL + productId, results);
+            await _scrapingService.GetPageData(WEB_SITE_REVIEW_URL + productId, sortByRecent, results);
 
             foreach(var res in results)
             {
@@ -56,6 +53,48 @@ namespace amazon_scrapper.Controllers
             }
 
             return results.Select(r => r.ReviewContent).Aggregate((r, s) => (r + Environment.NewLine + Environment.NewLine + s));
+        }
+
+        /// <summary>
+        /// Advanced feature : retrieve as many URLs as you want within one single call.
+        /// Because it can be quite heavy, we will pass this as a POST request
+        /// </summary>
+        /// <remarks>
+        /// Should receive an application/json data format,
+        /// itself being an array (for instance ["B082XY23D5", "B082XY23D5"])
+        /// </remarks>
+        /// <returns></returns>
+        [HttpPost]
+        public async Task<string> PostManyAsync()
+        {
+            string body;
+            using (var streamReader = new StreamReader(HttpContext.Request.Body))
+            {
+                body = await streamReader.ReadToEndAsync().ConfigureAwait(false);
+            }
+
+            var productIds =  Jil.JSON.Deserialize<string[]>(body);
+
+            StringBuilder globalResult = new StringBuilder();
+            foreach(var productId in productIds)
+            {
+                var results = new List<Review>();
+                //B082XY23D5 or B082XY23D5
+                await _scrapingService.GetPageData(WEB_SITE_REVIEW_URL + productId, 1, results);
+
+                foreach (var res in results)
+                {
+                    _logger.LogInformation("Asin: " + res.Asin);
+                    _logger.LogInformation("Rating: " + res.Rating);
+                    _logger.LogInformation("ReviewDate: " + res.ReviewDate);
+                    _logger.LogInformation("ReviewTitle: " + res.ReviewTitle);
+                    _logger.LogInformation("ReviewContent: " + res.ReviewContent);
+                }
+
+                globalResult.Append($"RESULTS FOR PRODUCT {productId}: + {Environment.NewLine + results.Select(r => r.ReviewContent).Aggregate((r, s) => r + Environment.NewLine + Environment.NewLine + s) + Environment.NewLine}");
+            }
+
+            return globalResult.ToString();
         }
     }
 }
