@@ -26,7 +26,13 @@ namespace amazon_scraper
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            //services.AddLogging(lb => lb.AddConsole().SetMinimumLevel(LogLevel.Information));
+            services.AddLogging(loggingBuilder =>
+            {
+                loggingBuilder.AddConsole(c => c.TimestampFormat = "yyyy-MM-dd HH:mm:ss.fff ")
+                    .AddConfiguration(Configuration)
+                    .SetMinimumLevel(LogLevel.Information);
+            });
+
             services.AddSingleton<IScrapingService, ScrapingService>();
             services.AddControllers();
         }
