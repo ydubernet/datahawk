@@ -3,7 +3,6 @@ using AngleSharp;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -13,10 +12,12 @@ namespace amazon_scraper.Services
     {
         private const string WEB_SITE_URL = "https://www.amazon.com";
         private readonly ILogger<ScrapingService> _logger;
+        private readonly IReviewIndexerService _reviewService;
 
-        public ScrapingService(ILogger<ScrapingService> logger)
+        public ScrapingService(ILogger<ScrapingService> logger, IReviewIndexerService reviewService)
         {
             _logger = logger;
+            _reviewService = reviewService;
         }
 
         public async Task<List<Review>> GetPageData(string url, int sortByRecent, List<Review> results)
@@ -36,7 +37,7 @@ namespace amazon_scraper.Services
                     requestUrl = url + "?sortBy=recent";
                 }
             }
-            
+
             var document = await context.OpenAsync(requestUrl);
             var rawReviews = document.QuerySelectorAll(".review");
 
@@ -57,9 +58,9 @@ namespace amazon_scraper.Services
                 var dateRegexMatch = Regex.Match(reviewDateRow, "on (?<Date>[A-Z][a-z]+ [0-9]{1,2}, (19|20)[0-9]{2}$)");
 
                 DateTime reviewDate = DateTime.MinValue;
-                if(dateRegexMatch.Success)
+                if (dateRegexMatch.Success)
                 {
-                    DateTime.TryParse(dateRegexMatch.Groups["Date"].Value, out reviewDate);   
+                    DateTime.TryParse(dateRegexMatch.Groups["Date"].Value, out reviewDate);
                 }
 
                 string reviewContent = null;
@@ -67,7 +68,7 @@ namespace amazon_scraper.Services
                 {
                     reviewContent = rawReview.FirstElementChild.FirstChild.ChildNodes[4].FirstChild.TextContent.Trim();//rawReview.QuerySelector($"{divId}-review-card > customer_review-{divId} > div.review-data > .review-body > span").TextContent;
                 }
-                catch(Exception e)
+                catch (Exception e)
                 {
                     _logger.LogError(e, $"Failing to parse content on URL {url}");
                 }
@@ -84,12 +85,12 @@ namespace amazon_scraper.Services
                         double.TryParse(ratingRegexMatch.Groups["ReviewRating"].Value, out reviewRating);
                     }
                 }
-                catch(Exception e)
+                catch (Exception e)
                 {
                     _logger.LogError(e, $"Failing to parse rating on URL {url}");
                 }
 
-                results.Add(new Review(asin, reviewDate, reviewTitle, reviewContent, reviewRating));
+                results.Add(new Review(asin, reviewDate, reviewTitle, reviewRating, reviewContent));
             }
 
             // Check if a next page link is present
@@ -106,6 +107,7 @@ namespace amazon_scraper.Services
                 return await GetPageData(nextPageUrl, sortByRecent, results);
             }
 
+            await _reviewService.InsertReviewsForOneAsinAsync(results);
             return results;
         }
     }

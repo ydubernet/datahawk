@@ -47,12 +47,12 @@ namespace amazon_scrapper.Controllers
             {
                 _logger.LogInformation("Asin: " + res.Asin);
                 _logger.LogInformation("Rating: " + res.Rating);
-                _logger.LogInformation("ReviewDate: " + res.ReviewDate);
-                _logger.LogInformation("ReviewTitle: " + res.ReviewTitle);
-                _logger.LogInformation("ReviewContent: " + res.ReviewContent);
+                _logger.LogInformation("ReviewDate: " + res.Date);
+                _logger.LogInformation("ReviewTitle: " + res.Title);
+                _logger.LogInformation("ReviewContent: " + res.Content);
             }
 
-            return results.Select(r => r.ReviewContent).Aggregate((r, s) => (r + Environment.NewLine + Environment.NewLine + s));
+            return results.Select(r => r.Content).Aggregate((r, s) => (r + Environment.NewLine + Environment.NewLine + s));
         }
 
         /// <summary>
@@ -86,12 +86,12 @@ namespace amazon_scrapper.Controllers
                 {
                     _logger.LogInformation("Asin: " + res.Asin);
                     _logger.LogInformation("Rating: " + res.Rating);
-                    _logger.LogInformation("ReviewDate: " + res.ReviewDate);
-                    _logger.LogInformation("ReviewTitle: " + res.ReviewTitle);
-                    _logger.LogInformation("ReviewContent: " + res.ReviewContent);
+                    _logger.LogInformation("ReviewDate: " + res.Date);
+                    _logger.LogInformation("ReviewTitle: " + res.Title);
+                    _logger.LogInformation("ReviewContent: " + res.Content);
                 }
 
-                globalResult.Append($"RESULTS FOR PRODUCT {productId}: + {Environment.NewLine + results.Select(r => r.ReviewContent).Aggregate((r, s) => r + Environment.NewLine + Environment.NewLine + s) + Environment.NewLine}");
+                globalResult.Append($"RESULTS FOR PRODUCT {productId}: + {Environment.NewLine + results.Select(r => r.Content).Aggregate((r, s) => r + Environment.NewLine + Environment.NewLine + s) + Environment.NewLine}");
             }
 
             return globalResult.ToString();
