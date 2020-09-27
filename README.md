@@ -17,7 +17,7 @@ To start the app, simple : cd amazon_scraper && dotnet run .
 * /webscraper/ASINID : scraps the webpage AND its following ones if any and writes in database the scrapping result. If there is no new content to index, returns HTTP 204 and redirects to /webscraper/ASINID/existing
 * /webscraper/ASINID/existing : retrieves all already indexed user reviews for the ASINID
 
-* POST /webscraper ; BODY : applicationtype/json ["ASIN1","ASIN2",...,"ASINN"] : scraps all webpages of the array of asins
+* POST /webscraper : HEADERS : Content-Type: application/json ; BODY : ["ASIN1","ASIN2",...,"ASINN"] : scraps all webpages of the array of asins
 
 I didn't do an endpoint for scrapping the 10 most recent ones, but it is a nice to know that a feature to retrieve the N top exists at least from DB point of view.
 And it would need a little bit of adaptation, but not too much, to make that work.
