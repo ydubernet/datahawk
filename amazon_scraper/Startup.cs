@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using amazon_scraper.Databases;
 using amazon_scraper.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -16,6 +17,9 @@ namespace amazon_scraper
 {
     public class Startup
     {
+        // Yes, I know it's bad to copy this from Program but I'm writing that piece of code at midnight
+        private const string DB_DATA_SOURCE_CONNECTION_STRING = "DataSource=AmazonScraper.db";
+
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
@@ -33,6 +37,8 @@ namespace amazon_scraper
                     .SetMinimumLevel(LogLevel.Information);
             });
 
+            services.AddSingleton<IReviewRepository>(sp => new ReviewRepository(DB_DATA_SOURCE_CONNECTION_STRING, sp.GetRequiredService<ILogger<ReviewRepository>>()));
+            services.AddSingleton<IReviewIndexerService, ReviewIndexerService>();
             services.AddSingleton<IScrapingService, ScrapingService>();
             services.AddControllers();
         }
