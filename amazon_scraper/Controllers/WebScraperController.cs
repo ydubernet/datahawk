@@ -1,16 +1,14 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using amazon_scraper.Models;
+using amazon_scraper.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using AngleSharp;
-using AngleSharp.Html.Parser;
-using amazon_scraper.Services;
-using amazon_scraper.Models;
-using System.Text;
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace amazon_scrapper.Controllers
 {
@@ -22,13 +20,16 @@ namespace amazon_scrapper.Controllers
         private const string WEB_SITE_REVIEW_URL = WEB_SITE_URL + "/product-reviews/";
         private readonly ILogger<WebScraperController> _logger;
         private readonly IScrapingService _scrapingService;
-        
+        private readonly IReviewIndexerService _reviewIndexerService;
+
         public WebScraperController(
             IScrapingService scrapingService,
+            IReviewIndexerService reviewIndexerService,
             ILogger<WebScraperController> logger)
         {
             _logger = logger;
             _scrapingService = scrapingService;
+            _reviewIndexerService = reviewIndexerService;
         }
 
         /// <summary>
@@ -43,7 +44,7 @@ namespace amazon_scrapper.Controllers
             //B082XY23D5 or B084M1M1DZ
             await _scrapingService.GetPageData(WEB_SITE_REVIEW_URL + productId, sortByRecent, results);
 
-            foreach(var res in results)
+            foreach (var res in results)
             {
                 _logger.LogInformation("Asin: " + res.Asin);
                 _logger.LogInformation("Rating: " + res.Rating);
@@ -52,7 +53,39 @@ namespace amazon_scrapper.Controllers
                 _logger.LogInformation("ReviewContent: " + res.Content);
             }
 
+            if (results.Count() == 0)
+            {
+                HttpContext.Response.StatusCode = 204;
+                HttpContext.Response.Redirect($"{productId}/existing");
+                return string.Empty;
+            }
+
             return results.Select(r => r.Content).Aggregate((r, s) => (r + Environment.NewLine + Environment.NewLine + s));
+        }
+
+        [HttpGet("{productId}/existing")]
+        public async Task<string> GetWithoutScrapping(string productId)
+        {
+            var results = await _reviewIndexerService.GetReviewsAsync(productId);
+
+            // Yes, I know I shouldn't do that. It should be in a front.
+            // So I'll return a string so that human eye may quickly get the final output idea.
+
+            var resultBuilder = new StringBuilder();
+            foreach (var result in results)
+            {
+                resultBuilder
+                    .Append(result.Title)
+                    .Append("\t")
+                    .Append(result.Rating)
+                    .Append("\t")
+                    .Append(result.Date)
+                    .Append("\t\n")
+                    .Append(result.Content)
+                    .Append("\n\n");
+            }
+
+            return resultBuilder.ToString();
         }
 
         /// <summary>
@@ -73,14 +106,19 @@ namespace amazon_scrapper.Controllers
                 body = await streamReader.ReadToEndAsync().ConfigureAwait(false);
             }
 
-            var productIds =  Jil.JSON.Deserialize<string[]>(body);
+            var productIds = Jil.JSON.Deserialize<string[]>(body);
 
             StringBuilder globalResult = new StringBuilder();
-            foreach(var productId in productIds)
+            foreach (var productId in productIds)
             {
                 var results = new List<Review>();
                 //B082XY23D5 or B082XY23D5
                 await _scrapingService.GetPageData(WEB_SITE_REVIEW_URL + productId, 1, results);
+
+                if (results.Count == 0)
+                {
+                    _logger.LogInformation($"No new review for asin {productId}");
+                }
 
                 foreach (var res in results)
                 {
@@ -91,7 +129,7 @@ namespace amazon_scrapper.Controllers
                     _logger.LogInformation("ReviewContent: " + res.Content);
                 }
 
-                globalResult.Append($"RESULTS FOR PRODUCT {productId}: + {Environment.NewLine + results.Select(r => r.Content).Aggregate((r, s) => r + Environment.NewLine + Environment.NewLine + s) + Environment.NewLine}");
+                globalResult.Append($"{productId} {Environment.NewLine}");
             }
 
             return globalResult.ToString();

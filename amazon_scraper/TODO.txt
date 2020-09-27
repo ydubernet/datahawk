@@ -1,1 +1,0 @@
-﻿TODO : Think about a mechanism so that we wouldn't waste time on indexing things we already have.

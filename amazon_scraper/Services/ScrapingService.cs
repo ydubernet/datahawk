@@ -48,13 +48,17 @@ namespace amazon_scraper.Services
             }
 
             string asin = urlProductIdMatchRegex.Groups["ProductId"].Value;
+            var reviewIdsAlreadyRetrieved = await _reviewService.GetAllReviewsIdsAsync(asin); // Not optimal at all
 
             foreach (var rawReview in rawReviews)
             {
-                //string divId = rawReview.GetAttribute("id");
+                string reviewId = rawReview.GetAttribute("id");
+                if (reviewIdsAlreadyRetrieved.Contains(reviewId))
+                    continue;
+
+
                 string reviewTitle = rawReview.QuerySelector(".review-title > span").TextContent;
                 string reviewDateRow = rawReview.QuerySelector(".review-date").TextContent;
-                //var dateRegexMatch = Regex.Match(reviewDateRow, "on (?<Date>[A-Z]{1}[a-z]+, [19|20][0-9]{2}$)");
                 var dateRegexMatch = Regex.Match(reviewDateRow, "on (?<Date>[A-Z][a-z]+ [0-9]{1,2}, (19|20)[0-9]{2}$)");
 
                 DateTime reviewDate = DateTime.MinValue;
@@ -90,7 +94,7 @@ namespace amazon_scraper.Services
                     _logger.LogError(e, $"Failing to parse rating on URL {url}");
                 }
 
-                results.Add(new Review(asin, reviewDate, reviewTitle, reviewRating, reviewContent));
+                results.Add(new Review(asin, reviewId, reviewDate, reviewTitle, reviewRating, reviewContent));
             }
 
             // Check if a next page link is present

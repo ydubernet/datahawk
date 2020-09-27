@@ -14,5 +14,6 @@ namespace amazon_scraper.Services
 
         Task<bool> InsertReviewAsync(Review review);
         Task<bool> InsertReviewsForOneAsinAsync(IList<Review> reviews);
+        Task<IList<string>> GetAllReviewsIdsAsync(string asin);
     }
 }

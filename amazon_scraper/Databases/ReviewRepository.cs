@@ -23,7 +23,7 @@ namespace amazon_scraper.Databases
 
         public async Task<Review> GetReviewAsync(int reviewId)
         {
-            const string sql = @"SELECT asin, date, title, rating, content
+            const string sql = @"SELECT asin, id, date, title, rating, content
                                  FROM Review
                                  WHERE Id = @ReviewId;";
             try
@@ -42,10 +42,11 @@ namespace amazon_scraper.Databases
                     return new Review
                     (
                         reader.GetString(0),
-                        reader.GetDateTime(1),
-                        reader.GetString(2),
-                        reader.GetDouble(3),
-                        reader.GetString(4)
+                        reader.GetString(1),
+                        reader.GetDateTime(2),
+                        reader.GetString(3),
+                        reader.GetDouble(4),
+                        reader.GetString(5)
                     );
                 }
                 else return null;
@@ -59,9 +60,10 @@ namespace amazon_scraper.Databases
 
         public async Task<IList<Review>> GetReviewsAsync(string asin)
         {
-            const string sql = @"SELECT asin, date, title, rating, content
+            const string sql = @"SELECT asin, id, date, title, rating, content
                                  FROM Review
-                                 WHERE asin = @asin;";
+                                 WHERE asin = @asin
+                                 ORDER BY date desc;";
             try
             {
                 using var connection = new SQLiteConnection(_connectionString);
@@ -79,11 +81,12 @@ namespace amazon_scraper.Databases
                     reviews.Add(
                         new Review
                         (
-                            reader.GetString(0),
-                            reader.GetDateTime(1),
-                            reader.GetString(2),
-                            reader.GetDouble(3),
-                            reader.GetString(4)
+                            reader.IsDBNull(0) ? null : reader.GetString(0),
+                            reader.IsDBNull(1) ? null : reader.GetString(1),
+                            reader.IsDBNull(2) ? DateTime.MinValue : reader.GetDateTime(2),
+                            reader.IsDBNull(3) ? null : reader.GetString(3),
+                            reader.IsDBNull(4) ? -1 : reader.GetDouble(4),
+                            reader.IsDBNull(5) ? null : reader.GetString(5)
                         ));
                 }
 
@@ -98,7 +101,7 @@ namespace amazon_scraper.Databases
 
         public async Task<IList<Review>> GetReviewsForManyAsinsAsync(IList<string> asins)
         {
-            const string sql = @"SELECT asin, date, title, rating, content
+            const string sql = @"SELECT asin, id, date, title, rating, content
                                  FROM Review
                                  WHERE asin in @asins;";
             try
@@ -119,10 +122,11 @@ namespace amazon_scraper.Databases
                         new Review
                         (
                             reader.GetString(0),
-                            reader.GetDateTime(1),
+                            reader.GetString(1),
+                            reader.GetDateTime(2),
                             reader.GetString(2),
-                            reader.GetDouble(3),
-                            reader.GetString(4)
+                            reader.GetDouble(4),
+                            reader.GetString(5)
                         ));
                 }
 
@@ -137,10 +141,11 @@ namespace amazon_scraper.Databases
 
         public async Task<IList<Review>> GetLastReviewsForManyAsinsAsync(IList<string> asins, int numberOfReviewsByAsin)
         {
-            const string sql = @"SELECT TOP(@numberOfReviews) asin, date, title, rating, content
+            const string sql = @"SELECT asin, id, date, title, rating, content
                                  FROM Review
                                  WHERE asin in @asins
-                                 ORDER BY date DESC;";
+                                 ORDER BY date DESC
+                                 LIMIT @numberOfReviews;";
             try
             {
                 using var connection = new SQLiteConnection(_connectionString);
@@ -160,10 +165,11 @@ namespace amazon_scraper.Databases
                         new Review
                         (
                             reader.GetString(0),
-                            reader.GetDateTime(1),
-                            reader.GetString(2),
-                            reader.GetDouble(3),
-                            reader.GetString(4)
+                            reader.GetString(1),
+                            reader.GetDateTime(2),
+                            reader.GetString(3),
+                            reader.GetDouble(4),
+                            reader.GetString(5)
                         ));
                 }
 
@@ -179,8 +185,8 @@ namespace amazon_scraper.Databases
 
         public async Task<bool> InsertReviewAsync(Review review)
         {
-            const string sql = @"INSERT INTO Review (asin, date, title, rating, content)
-                                 VALUES (@asin, @date, @title, @rating, @content);";
+            const string sql = @"INSERT INTO Review (asin, id, date, title, rating, content)
+                                 VALUES (@asin, @reviewid, date, @title, @rating, @content);";
             try
             {
                 using var connection = new SQLiteConnection(_connectionString);
@@ -207,8 +213,8 @@ namespace amazon_scraper.Databases
 
         public async Task<bool> InsertReviewsForOneAsinAsync(IList<Review> reviews)
         {
-            const string sql = @"INSERT INTO Review (asin, date, title, rating, content)
-                                 VALUES (@asin, @date, @title, @rating, @content);";
+            const string sql = @"INSERT INTO Review (asin, id, date, title, rating, content)
+                                 VALUES (@asin, @reviewid, @date, @title, @rating, @content);";
 
             using var connection = new SQLiteConnection(_connectionString);
             await connection.OpenAsync();
@@ -231,6 +237,38 @@ namespace amazon_scraper.Databases
             }
 
             return true;
+        }
+
+        public async Task<IList<string>> GetAllReviewsIdsAsync(string asin)
+        {
+            const string sql = @"SELECT id
+                                 FROM Review
+                                 WHERE asin = @asin;";
+
+            try
+            {
+                using var connection = new SQLiteConnection(_connectionString);
+                await connection.OpenAsync().ConfigureAwait(false);
+                var reader = await connection.ExecuteReaderAsync(sql,
+                    new
+                    {
+                        asin
+                    },
+                    commandType: CommandType.Text).ConfigureAwait(false);
+
+                var reviewsIds = new List<string>();
+                while (reader.Read())
+                {
+                    reviewsIds.Add(
+                       reader.GetString(0));
+                }
+                return reviewsIds;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, $"Getting all review ids for asin {asin} failed.");
+                return null;
+            }
         }
     }
 }

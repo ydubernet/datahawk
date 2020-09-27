@@ -39,8 +39,8 @@ namespace amazon_scraper
             //Review (asin, date, title, rating, content)
             string createTableIfNotExists = @"CREATE TABLE IF NOT EXISTS Review
                                             (
-                                                Id INTEGER PRIMARY KEY AUTOINCREMENT,
                                                 Asin VARCHAR(15) NOT NULL,
+                                                Id VARCHAR(15) NOT NULL,
                                                 Date DATE,
                                                 Title VARCHAR(100) NOT NULL,
                                                 Rating DOUBLE DEFAULT 0,
