@@ -11,7 +11,7 @@ As a consequence, and because I don't have a unlimited time to do this exercise 
 I may give it a try later without the clock tick on my back.
 
 **HOW TO START**
-To start the app, simple : dotnet run .
+To start the app, simple : cd amazon_scraper && dotnet run .
 
 **ENDPOINTS**
 * /webscraper/ASINID : scraps the webpage AND its following ones if any and writes in database the scrapping result. If there is no new content to index, returns HTTP 204 and redirects to /webscraper/ASINID/existing
